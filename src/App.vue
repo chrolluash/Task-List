@@ -662,9 +662,11 @@ function handleAdd() {
     padding: 1.25rem;
     align-items: flex-start;
     padding-top: 2rem;
+    height: 100dvh;
+    min-height: 100dvh;
   }
   .container {
-    height: calc(100vh - 3.25rem);
+    height: calc(100dvh - 3.25rem);
     max-height: none;
   }
   .header {
@@ -710,7 +712,7 @@ function handleAdd() {
   .footer {
     margin-top: auto;
     padding-top: 1rem;
-    padding-bottom: 0.5rem;
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem);
   }
 }
 </style>
