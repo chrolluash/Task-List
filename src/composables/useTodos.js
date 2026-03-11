@@ -31,5 +31,12 @@ export function useTodos() {
     todos.value = todos.value.filter(t => !t.completed)
   }
 
-  return { todos, addTodo, toggleTodo, deleteTodo, clearCompleted }
+  function updateTodo(id, newTitle) {
+    const todo = todos.value.find(t => t.id === id)
+    if (todo) {
+      todo.title = newTitle
+    }
+  }
+
+  return { todos, addTodo, toggleTodo, deleteTodo, clearCompleted, updateTodo }
 }

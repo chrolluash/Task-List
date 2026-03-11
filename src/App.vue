@@ -82,18 +82,42 @@
       <div class="todo-list">
         <TransitionGroup name="task">
           <div
-            v-for="todo in filteredTodos"
+            v-for="(todo, index) in filteredTodos"
             :key="todo.id"
             class="todo-item"
+            :style="{ '--i': index }"
           >
             <button @click="toggleTodo(todo.id)" class="check-btn">
               <span class="check-ring" :class="{ checked: todo.completed }">
                 <span v-if="todo.completed" class="check-mark">✓</span>
               </span>
             </button>
-            <span class="todo-text" :class="{ strikethrough: todo.completed }">
-              {{ todo.title }}
-            </span>
+
+            <!-- View mode -->
+            <span
+              v-if="editingId !== todo.id"
+              class="todo-text"
+              :class="{ strikethrough: todo.completed }"
+              @dblclick="startEdit(todo)"
+            >{{ todo.title }}</span>
+
+            <!-- Edit mode -->
+            <input
+              v-else
+              :ref="el => { if (el) editInputRefs[todo.id] = el }"
+              v-model="editingText"
+              class="todo-edit-input"
+              @keydown.enter="saveEdit(todo.id)"
+              @keydown.escape="cancelEdit"
+              @blur="saveEdit(todo.id)"
+              maxlength="100"
+            />
+
+            <button
+              v-if="editingId !== todo.id"
+              @click="startEdit(todo)"
+              class="edit-btn"
+            >✎</button>
             <button @click="deleteTodo(todo.id)" class="del-btn">×</button>
           </div>
         </TransitionGroup>
@@ -106,9 +130,16 @@
         </Transition>
       </div>
 
-      <!-- Clear Completed -->
+      <!-- Clear Completed — desktop: always reserve space, mobile: v-if -->
+      <div class="clear-row desktop-clear">
+        <button
+          @click="clearCompleted"
+          class="clear-btn"
+          :style="{ visibility: todos.some(t => t.completed) ? 'visible' : 'hidden' }"
+        >clear completed</button>
+      </div>
       <Transition name="fade">
-        <div v-if="todos.some(t => t.completed)" class="clear-row">
+        <div v-if="todos.some(t => t.completed)" class="clear-row mobile-clear">
           <button @click="clearCompleted" class="clear-btn">clear completed</button>
         </div>
       </Transition>
@@ -128,16 +159,48 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import Squares from '@/components/Squares.vue'
 import { useTodos } from '@/composables/useTodos.js'
 
-const { todos, addTodo, toggleTodo, deleteTodo, clearCompleted } = useTodos()
+const { todos, addTodo, toggleTodo, deleteTodo, clearCompleted, updateTodo } = useTodos()
 
 const inputTitle = ref('')
 const activeFilter = ref('all')
 const clock = ref('')
 const isLight = ref(false)
+
+const editingId = ref(null)
+const editingText = ref('')
+const editInputRefs = {}
+
+function startEdit(todo) {
+  if (todo.completed) return
+  editingId.value = todo.id
+  editingText.value = todo.title
+  nextTick(() => {
+    const el = editInputRefs[todo.id]
+    if (el) {
+      el.focus()
+      el.select()
+    }
+  })
+}
+
+function saveEdit(id) {
+  if (editingId.value !== id) return
+  const trimmed = editingText.value.trim()
+  if (trimmed) {
+    updateTodo(id, trimmed)
+  }
+  editingId.value = null
+  editingText.value = ''
+}
+
+function cancelEdit() {
+  editingId.value = null
+  editingText.value = ''
+}
 
 function updateClock() {
   clock.value = new Date().toLocaleTimeString('en-US', {
@@ -343,7 +406,6 @@ function handleAdd() {
   gap: 1rem;
   flex-shrink: 0;
 }
-
 .theme-toggle {
   background: none;
   border: 1px solid var(--border);
@@ -363,12 +425,7 @@ function handleAdd() {
   border-color: var(--text);
   color: var(--text);
 }
-
-.stats {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
+.stats { display: flex; align-items: center; gap: 0.6rem; }
 .stat { text-align: center; }
 .stat-num {
   display: block;
@@ -430,7 +487,6 @@ function handleAdd() {
 }
 .task-input::placeholder { color: var(--text-faint); }
 .task-input:focus { border-color: var(--text); }
-
 .add-btn {
   background: var(--text);
   color: var(--bg);
@@ -487,33 +543,20 @@ function handleAdd() {
   min-height: var(--list-max);
   max-height: var(--list-max);
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   flex-shrink: 0;
   transition: scrollbar-color 0.3s ease;
+  position: relative;
 }
 .todo-list:hover {
   scrollbar-color: var(--scrollbar) transparent;
 }
-.todo-list::-webkit-scrollbar {
-  width: 2px;
-}
-.todo-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-.todo-list::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 0;
-  transition: background 0.3s ease;
-}
-.todo-list:hover::-webkit-scrollbar-thumb {
-  background: var(--scrollbar);
-}
-.todo-list::-webkit-scrollbar-button {
-  display: none;
-  height: 0;
-  width: 0;
-}
+.todo-list::-webkit-scrollbar { width: 2px; }
+.todo-list::-webkit-scrollbar-track { background: transparent; }
+.todo-list::-webkit-scrollbar-thumb { background: transparent; border-radius: 0; }
+.todo-list:hover::-webkit-scrollbar-thumb { background: var(--scrollbar); }
 
 .todo-item {
   display: flex;
@@ -525,6 +568,7 @@ function handleAdd() {
   transition: border-color 0.4s ease;
 }
 .todo-item:hover .del-btn { opacity: 1; }
+.todo-item:hover .edit-btn { opacity: 1; }
 
 .check-btn {
   background: none;
@@ -554,8 +598,40 @@ function handleAdd() {
   transition: color 0.2s;
   min-width: 0;
   word-break: break-word;
+  cursor: text;
 }
 .strikethrough { text-decoration: line-through; color: var(--text-faint); }
+
+/* ─── Edit Input ─────────────────────────────────────────── */
+.todo-edit-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--text);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(0.75rem, 2vw, 0.88rem);
+  letter-spacing: 0.06em;
+  outline: none;
+  padding: 0 0 2px 0;
+  min-width: 0;
+  transition: border-color 0.2s, color 0.4s ease;
+}
+
+/* ─── Edit Button ────────────────────────────────────────── */
+.edit-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s;
+  padding: 0 0.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.edit-btn:hover { color: var(--text); }
 
 .del-btn {
   background: none;
@@ -572,7 +648,16 @@ function handleAdd() {
 .del-btn:hover { color: var(--text); }
 
 /* ─── Empty State ────────────────────────────────────────── */
-.empty { text-align: center; padding: 3rem 0; }
+.empty {
+  text-align: center;
+  padding: 3rem 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
 .empty-icon {
   display: block;
   font-size: 2rem;
@@ -586,6 +671,7 @@ function handleAdd() {
   color: var(--text-faint);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-align: center;
   transition: color 0.4s ease;
 }
 
@@ -609,6 +695,8 @@ function handleAdd() {
   transition: color 0.2s;
 }
 .clear-btn:hover { color: var(--text-dim); }
+.mobile-clear { display: none; }
+.desktop-clear { display: block; }
 
 /* ─── Footer ─────────────────────────────────────────────── */
 .footer {
@@ -646,8 +734,16 @@ function handleAdd() {
 .credit-icon { font-size: 0.55rem; }
 
 /* ─── Transitions ────────────────────────────────────────── */
-.task-enter-active,
-.task-leave-active { transition: all 0.3s ease; }
+.task-enter-active {
+  transition: all 0.10s ease;
+  transition-delay: 0.10s;
+}
+.task-leave-active {
+  transition: all 0.3s ease;
+  transition-delay: calc(var(--i, 0) * 0.05s);
+  position: absolute;
+  width: 100%;
+}
 .task-enter-from { opacity: 0; transform: translateX(-16px); }
 .task-leave-to   { opacity: 0; transform: translateX(16px); }
 
@@ -669,46 +765,30 @@ function handleAdd() {
     height: calc(100dvh - 3.25rem);
     max-height: none;
   }
-  .header {
-    margin-bottom: 1rem;
-    gap: 0.5rem;
-  }
-  .header-left {
-    gap: 0.5rem;
-  }
-  .logo-mark {
-    font-size: 1rem;
-  }
-  .title {
-    font-size: 1.4rem;
-    letter-spacing: 0.1em;
-  }
-  .subtitle {
-    white-space: normal;
-    font-size: 0.6rem;
-  }
-  .stat-num {
-    font-size: 1.2rem;
-  }
-  .stat-label {
-    font-size: 0.55rem;
-  }
-  .stat-divider {
-    font-size: 1rem;
-    margin-bottom: 0.3rem;
-  }
-  .theme-toggle {
-    width: 26px;
-    height: 26px;
-    font-size: 0.75rem;
-  }
+  .header { margin-bottom: 1rem; gap: 0.5rem; }
+  .header-left { gap: 0.5rem; }
+  .logo-mark { font-size: 1rem; }
+  .title { font-size: 1.4rem; letter-spacing: 0.1em; }
+  .subtitle { white-space: normal; font-size: 0.6rem; }
+  .stat-num { font-size: 1.2rem; }
+  .stat-label { font-size: 0.55rem; }
+  .stat-divider { font-size: 1rem; margin-bottom: 0.3rem; }
+  .theme-toggle { width: 26px; height: 26px; font-size: 0.75rem; }
   .del-btn { opacity: 1; }
+  .edit-btn { opacity: 1; }
   .todo-list {
     height: auto;
     min-height: 0;
     max-height: none;
     flex: 1;
   }
+  .empty {
+    justify-content: flex-start;
+    padding-top: 3rem;
+    padding-bottom: 0;
+  }
+  .desktop-clear { display: none; }
+  .mobile-clear { display: block; }
   .footer {
     margin-top: auto;
     padding-top: 1rem;
