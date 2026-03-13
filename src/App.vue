@@ -190,9 +190,7 @@ function startEdit(todo) {
 function saveEdit(id) {
   if (editingId.value !== id) return
   const trimmed = editingText.value.trim()
-  if (trimmed) {
-    updateTodo(id, trimmed)
-  }
+  if (trimmed) updateTodo(id, trimmed)
   editingId.value = null
   editingText.value = ''
 }
@@ -547,8 +545,8 @@ function handleAdd() {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   flex-shrink: 0;
-  transition: scrollbar-color 0.3s ease;
   position: relative;
+  transition: scrollbar-color 0.3s ease;
 }
 .todo-list:hover {
   scrollbar-color: var(--scrollbar) transparent;
@@ -735,17 +733,15 @@ function handleAdd() {
 
 /* ─── Transitions ────────────────────────────────────────── */
 .task-enter-active {
-  transition: all 0.10s ease;
-  transition-delay: 0.10s;
+  transition: all 0.3s ease;
+  transition-delay: 0.15s;
 }
 .task-leave-active {
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease;
   transition-delay: calc(var(--i, 0) * 0.05s);
-  position: absolute;
-  width: 100%;
 }
 .task-enter-from { opacity: 0; transform: translateX(-16px); }
-.task-leave-to   { opacity: 0; transform: translateX(16px); }
+.task-leave-to   { opacity: 0; }
 
 .fade-enter-active,
 .fade-leave-active { transition: opacity 0.3s ease; }
