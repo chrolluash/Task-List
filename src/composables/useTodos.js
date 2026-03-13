@@ -15,7 +15,7 @@ export function useTodos() {
   function addTodo(title) {
     const trimmed = title.trim()
     if (!trimmed) return
-    todos.value.push({ id: ++nextId, title: trimmed, completed: false })
+    todos.value.push({ id: ++nextId, title: trimmed, completed: false, description: '' })
   }
 
   function toggleTodo(id) {
@@ -33,10 +33,13 @@ export function useTodos() {
 
   function updateTodo(id, newTitle) {
     const todo = todos.value.find(t => t.id === id)
-    if (todo) {
-      todo.title = newTitle
-    }
+    if (todo) todo.title = newTitle
   }
 
-  return { todos, addTodo, toggleTodo, deleteTodo, clearCompleted, updateTodo }
+  function updateDescription(id, description) {
+    const todo = todos.value.find(t => t.id === id)
+    if (todo) todo.description = description
+  }
+
+  return { todos, addTodo, toggleTodo, deleteTodo, clearCompleted, updateTodo, updateDescription }
 }
